@@ -40,7 +40,7 @@ export default class Client {
     }
 
     getTeamId() {
-        if (!this.teamId) {
+        if (this.teamId === '') {
             console.error('You are trying to use a route that requires a team_id, but you have not called setTeamId() in client.jsx'); // eslint-disable-line no-console
         }
 
@@ -89,10 +89,6 @@ export default class Client {
 
     getCommandsRoute() {
         return `${this.url}${this.urlVersion}/teams/${this.getTeamId()}/commands`;
-    }
-
-    getEmojiRoute() {
-        return `${this.url}${this.urlVersion}/emoji`;
     }
 
     getHooksRoute() {
@@ -446,15 +442,6 @@ export default class Client {
         this.track('api', 'api_admin_reset_password');
     }
 
-    ldapSyncNow(success, error) {
-        request.
-            post(`${this.getAdminRoute()}/ldap_sync_now`).
-            set(this.defaultHeaders).
-            type('application/json').
-            accept('application/json').
-            end(this.handleResponse.bind(this, 'ldapSyncNow', success, error));
-    }
-
     // Team Routes Section
 
     createTeamFromSignup(teamSignup, success, error) {
@@ -549,14 +536,9 @@ export default class Client {
         this.track('api', 'api_teams_invite_members');
     }
 
-    addUserToTeam(teamId, userId, success, error) {
-        let nonEmptyTeamId = teamId;
-        if (nonEmptyTeamId === '') {
-            nonEmptyTeamId = this.getTeamId();
-        }
-
+    addUserToTeam(userId, success, error) {
         request.
-            post(`${this.getTeamsRoute()}/${nonEmptyTeamId}/add_user_to_team`).
+            post(`${this.getTeamNeededRoute()}/add_user_to_team`).
             set(this.defaultHeaders).
             type('application/json').
             accept('application/json').
@@ -576,23 +558,6 @@ export default class Client {
             end(this.handleResponse.bind(this, 'addUserToTeam', success, error));
 
         this.track('api', 'api_teams_invite_members');
-    }
-
-    removeUserFromTeam(teamId, userId, success, error) {
-        let nonEmptyTeamId = teamId;
-        if (nonEmptyTeamId === '') {
-            nonEmptyTeamId = this.getTeamId();
-        }
-
-        request.
-            post(`${this.getTeamsRoute()}/${nonEmptyTeamId}/remove_user_from_team`).
-            set(this.defaultHeaders).
-            type('application/json').
-            accept('application/json').
-            send({user_id: userId}).
-            end(this.handleResponse.bind(this, 'removeUserFromTeam', success, error));
-
-        this.track('api', 'api_teams_remove_members');
     }
 
     getInviteInfo(inviteId, success, error) {
@@ -635,7 +600,7 @@ export default class Client {
         this.track('api', 'api_users_create', '', 'email', user.email);
     }
 
-    updateUser(user, type, success, error) {
+    updateUser(user, success, error) {
         request.
             post(`${this.getUsersRoute()}/update`).
             set(this.defaultHeaders).
@@ -644,11 +609,7 @@ export default class Client {
             send(user).
             end(this.handleResponse.bind(this, 'updateUser', success, error));
 
-        if (type) {
-            this.track('api', 'api_users_update_' + type);
-        } else {
-            this.track('api', 'api_users_update');
-        }
+        this.track('api', 'api_users_update');
     }
 
     updatePassword(userId, currentPassword, newPassword, success, error) {
@@ -676,8 +637,6 @@ export default class Client {
             accept('application/json').
             send(notifyProps).
             end(this.handleResponse.bind(this, 'updateUserNotifyProps', success, error));
-
-        this.track('api', 'api_users_update_notification_settings');
     }
 
     updateRoles(teamId, userId, newRoles, success, error) {
@@ -969,12 +928,13 @@ export default class Client {
             end(this.handleResponse.bind(this, 'getProfilesForDirectMessageList', success, error));
     }
 
-    getStatuses(success, error) {
+    getStatuses(ids, success, error) {
         request.
-            get(`${this.getUsersRoute()}/status`).
+            post(`${this.getUsersRoute()}/status`).
             set(this.defaultHeaders).
             type('application/json').
             accept('application/json').
+            send(ids).
             end(this.handleResponse.bind(this, 'getStatuses', success, error));
     }
 
@@ -1019,8 +979,6 @@ export default class Client {
             attach('image', image, image.name).
             accept('application/json').
             end(this.handleResponse.bind(this, 'uploadProfileImage', success, error));
-
-        this.track('api', 'api_users_update_profile_picture');
     }
 
     // Channel Routes Section
@@ -1156,16 +1114,6 @@ export default class Client {
             end(this.handleResponse.bind(this, 'updateLastViewedAt', success, error));
     }
 
-    setLastViewedAt(channelId, lastViewedAt, success, error) {
-        request.
-        post(`${this.getChannelNeededRoute(channelId)}/set_last_viewed_at`).
-        set(this.defaultHeaders).
-        type('application/json').
-        accept('application/json').
-        send({last_viewed_at: lastViewedAt}).
-        end(this.handleResponse.bind(this, 'setLastViewedAt', success, error));
-    }
-
     getChannels(success, error) {
         request.
             get(`${this.getChannelsRoute()}/`).
@@ -1261,8 +1209,6 @@ export default class Client {
             accept('application/json').
             send({channelId, command, suggest: '' + suggest}).
             end(this.handleResponse.bind(this, 'executeCommand', success, error));
-
-        this.track('api', 'api_integrations_used');
     }
 
     addCommand(command, success, error) {
@@ -1273,8 +1219,6 @@ export default class Client {
             accept('application/json').
             send(command).
             end(this.handleResponse.bind(this, 'addCommand', success, error));
-
-        this.track('api', 'api_integrations_created');
     }
 
     deleteCommand(commandId, success, error) {
@@ -1285,8 +1229,6 @@ export default class Client {
             accept('application/json').
             send({id: commandId}).
             end(this.handleResponse.bind(this, 'deleteCommand', success, error));
-
-        this.track('api', 'api_integrations_deleted');
     }
 
     listTeamCommands(success, error) {
@@ -1320,14 +1262,6 @@ export default class Client {
             end(this.handleResponse.bind(this, 'createPost', success, error));
 
         this.track('api', 'api_posts_create', post.channel_id, 'length', post.message.length);
-
-        if (post.message.match(/\s#./)) {
-            this.track('api', 'api_posts_hashtag');
-        }
-
-        if (post.message.match(/\s@./)) {
-            this.track('api', 'api_posts_mentions');
-        }
     }
 
     // This is a temporary route to get around a problem with the permissions system that
@@ -1508,8 +1442,6 @@ export default class Client {
             accept('application/json').
             send(hook).
             end(this.handleResponse.bind(this, 'addIncomingHook', success, error));
-
-        this.track('api', 'api_integrations_created');
     }
 
     deleteIncomingHook(hookId, success, error) {
@@ -1520,8 +1452,6 @@ export default class Client {
             accept('application/json').
             send({id: hookId}).
             end(this.handleResponse.bind(this, 'deleteIncomingHook', success, error));
-
-        this.track('api', 'api_integrations_deleted');
     }
 
     listIncomingHooks(success, error) {
@@ -1541,8 +1471,6 @@ export default class Client {
             accept('application/json').
             send(hook).
             end(this.handleResponse.bind(this, 'addOutgoingHook', success, error));
-
-        this.track('api', 'api_integrations_created');
     }
 
     deleteOutgoingHook(hookId, success, error) {
@@ -1553,8 +1481,6 @@ export default class Client {
             accept('application/json').
             send({id: hookId}).
             end(this.handleResponse.bind(this, 'deleteOutgoingHook', success, error));
-
-        this.track('api', 'api_integrations_deleted');
     }
 
     listOutgoingHooks(success, error) {
@@ -1576,7 +1502,7 @@ export default class Client {
             end(this.handleResponse.bind(this, 'regenOutgoingHookToken', success, error));
     }
 
-    // Routes for Preferences
+    //Routes for Prefrecnes
 
     getAllPreferences(success, error) {
         request.
@@ -1604,80 +1530,5 @@ export default class Client {
             type('application/json').
             accept('application/json').
             end(this.handleResponse.bind(this, 'getPreferenceCategory', success, error));
-    }
-
-    deletePreferences(preferences, success, error) {
-        request.
-            post(`${this.getBaseRoute()}/preferences/delete`).
-            set(this.defaultHeaders).
-            type('application/json').
-            accept('application/json').
-            send(preferences).
-            end(this.handleResponse.bind(this, 'deletePreferences', success, error));
-    }
-
-    // Routes for Emoji
-
-    listEmoji(success, error) {
-        request.
-            get(`${this.getEmojiRoute()}/list`).
-            set(this.defaultHeaders).
-            type('application/json').
-            accept('application/json').
-            end(this.handleResponse.bind(this, 'listEmoji', success, error));
-    }
-
-    addEmoji(emoji, image, success, error) {
-        request.
-            post(`${this.getEmojiRoute()}/create`).
-            set(this.defaultHeaders).
-            accept('application/json').
-            attach('image', image, image.name).
-            field('emoji', JSON.stringify(emoji)).
-            end(this.handleResponse.bind(this, 'addEmoji', success, error));
-    }
-
-    deleteEmoji(id, success, error) {
-        request.
-            post(`${this.getEmojiRoute()}/delete`).
-            set(this.defaultHeaders).
-            accept('application/json').
-            send({id}).
-            end(this.handleResponse.bind(this, 'deleteEmoji', success, error));
-    }
-
-    getCustomEmojiImageUrl(id) {
-        return `${this.getEmojiRoute()}/${id}`;
-    }
-
-    uploadCertificateFile(file, success, error) {
-        request.
-        post(`${this.getAdminRoute()}/add_certificate`).
-        set(this.defaultHeaders).
-        accept('application/json').
-        attach('certificate', file, file.name).
-        end(this.handleResponse.bind(this, 'uploadCertificateFile', success, error));
-    }
-
-    removeCertificateFile(filename, success, error) {
-        request.
-        post(`${this.getAdminRoute()}/remove_certificate`).
-        set(this.defaultHeaders).
-        accept('application/json').
-        send({filename}).
-        end(this.handleResponse.bind(this, 'removeCertificateFile', success, error));
-    }
-
-    samlCertificateStatus(success, error) {
-        request.get(`${this.getAdminRoute()}/saml_cert_status`).
-        set(this.defaultHeaders).
-        type('application/json').
-        accept('application/json').
-        end((err, res) => {
-            if (err) {
-                return error(err);
-            }
-            return success(res.body);
-        });
     }
 }
